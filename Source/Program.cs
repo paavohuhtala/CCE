@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.CodeDom.Compiler;
+using System.Diagnostics;
 
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -30,8 +31,24 @@ namespace CitiesCompilerExtender
 				return;
 			}
 
-			var gameBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.dll");
-			var targetBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.mod.dll");
+			string gameBinary;
+			string targetBinary;
+			OperatingSystem os = Environment.OSVersion;
+			PlatformID pid = os.Platform;
+			Console.WriteLine(pid);
+			bool isOSX = false;
+			if (pid == PlatformID.Unix) {
+  				isOSX = ReadProcessOutput("uname").Contains("Darwin");
+  			}
+  			if (isOSX) {
+  				Console.WriteLine("OSX detected");
+				gameBinary = Path.Combine(installDir,   "Cities.app", "Contents", "Resources", "Data", "Managed", "Assembly-CSharp.dll");
+				targetBinary = Path.Combine(installDir, "Cities.app", "Contents", "Resources", "Data", "Managed", "Assembly-CSharp.mod.dll");
+			}
+			else {
+				gameBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.dll");
+				targetBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.mod.dll");
+			}
 
 			if(!File.Exists(gameBinary))
 			{
@@ -104,5 +121,27 @@ namespace CitiesCompilerExtender
 			Console.WriteLine();
 			Console.WriteLine("--help OR /help\t\tShow this dialog.");
 		}
+
+		//Modified from https://blez.wordpress.com/2012/09/17/determine-os-with-netmono/
+		private static string ReadProcessOutput(string name) {
+            try {
+                Process p = new Process();
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.FileName = name;
+                p.Start();
+                // Do not wait for the child process to exit before
+                // reading to the end of its redirected stream.
+                // p.WaitForExit();
+                // Read the output stream first and then wait.
+                string output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+                if (output == null) output = "";
+                output = output.Trim();
+                return output;
+            } catch {
+                return "";
+            }
+        }
 	}
 }
