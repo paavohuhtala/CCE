@@ -31,24 +31,30 @@ namespace CitiesCompilerExtender
 				return;
 			}
 
-			string gameBinary;
-			string targetBinary;
-			OperatingSystem os = Environment.OSVersion;
-			PlatformID pid = os.Platform;
-			Console.WriteLine(pid);
-			bool isOSX = false;
-			if (pid == PlatformID.Unix) {
-  				isOSX = ReadProcessOutput("uname").Contains("Darwin");
-  			}
-  			if (isOSX) {
-  				Console.WriteLine("OSX detected");
-				gameBinary = Path.Combine(installDir,   "Cities.app", "Contents", "Resources", "Data", "Managed", "Assembly-CSharp.dll");
-				targetBinary = Path.Combine(installDir, "Cities.app", "Contents", "Resources", "Data", "Managed", "Assembly-CSharp.mod.dll");
+			string baseDir = string.Empty;
+
+			var os = DetectOperatingSystem();
+
+			switch(os)
+			{
+				case OperatingSystem.Windows:
+				case OperatingSystem.Linux:
+					baseDir = Path.Combine(installDir, "Cities_Data");
+					break;
+
+				case OperatingSystem.OSX:
+					baseDir = Path.Combine(installDir, "Cities.app", "Contents", "Resources", "Data");
+					break;
+
+				case OperatingSystem.Unknown:
+					Console.WriteLine("Warning: Unsupported operating system!");
+					// Handle unknown operating systems like Windows & Linux
+					goto case OperatingSystem.Linux;
 			}
-			else {
-				gameBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.dll");
-				targetBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.mod.dll");
-			}
+
+			var managed = Path.Combine(baseDir, "Managed");
+			var gameBinary = Path.Combine(managed, "Assembly-CSharp.dll");
+			var outputBinary = Path.Combine(managed, "Assembly-CSharp.mod.dll");
 
 			if(!File.Exists(gameBinary))
 			{
@@ -64,7 +70,7 @@ namespace CitiesCompilerExtender
 				"ColossalManaged.dll"
 			};
 
-			ModifyAssembly(gameBinary, targetBinary, assemblies);
+			ModifyAssembly(gameBinary, outputBinary, assemblies);
 		}
 
 		private static void ModifyAssembly(string filePath, string targetPath, List<string> assemblies)
@@ -122,26 +128,65 @@ namespace CitiesCompilerExtender
 			Console.WriteLine("--help OR /help\t\tShow this dialog.");
 		}
 
+		private static OperatingSystem DetectOperatingSystem()
+		{
+			var platform = Environment.OSVersion.Platform;
+
+			if (platform == PlatformID.Win32NT)
+			{
+				return OperatingSystem.Windows;
+			}
+			else if (platform == PlatformID.Unix || platform == PlatformID.MacOSX)
+			{
+				var uname = GetProcessOutput("uname");
+
+				if (uname.Contains("Darwin"))
+				{
+					return OperatingSystem.OSX;
+				}
+				else if (uname.Contains("Linux"))
+				{
+					return OperatingSystem.Linux;
+				}
+			}
+
+			return OperatingSystem.Unknown;
+		}
+
+		private enum OperatingSystem
+		{
+			Windows,
+			Linux,
+			OSX,
+			Unknown
+		}
+
 		//Modified from https://blez.wordpress.com/2012/09/17/determine-os-with-netmono/
-		private static string ReadProcessOutput(string name) {
-            try {
-                Process p = new Process();
-                p.StartInfo.UseShellExecute = false;
-                p.StartInfo.RedirectStandardOutput = true;
-                p.StartInfo.FileName = name;
-                p.Start();
-                // Do not wait for the child process to exit before
-                // reading to the end of its redirected stream.
-                // p.WaitForExit();
-                // Read the output stream first and then wait.
-                string output = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                if (output == null) output = "";
-                output = output.Trim();
-                return output;
-            } catch {
-                return "";
-            }
-        }
+		private static string GetProcessOutput(string name)
+		{
+			try
+			{
+				var pInfo = new ProcessStartInfo(name)
+				{
+					UseShellExecute = false,
+					RedirectStandardOutput = true
+				};
+
+				Process p = Process.Start(pInfo);
+
+				// Do not wait for the child process to exit before reading to
+				// the end of its redirected stream.
+				// Read the output stream first and then wait.
+				var output = p.StandardOutput.ReadToEnd();
+				p.WaitForExit();
+
+				return output?.Trim() ?? string.Empty;
+			}
+			catch(FileNotFoundException)
+			{
+				// The executable couldn't be found -> return empty string
+				return string.Empty;
+			}
+		}
 	}
 }
