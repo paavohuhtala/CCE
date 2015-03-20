@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.CodeDom.Compiler;
+using System.Diagnostics;
 
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -30,8 +31,30 @@ namespace CitiesCompilerExtender
 				return;
 			}
 
-			var gameBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.dll");
-			var targetBinary = Path.Combine(installDir, "Cities_Data", "Managed", "Assembly-CSharp.mod.dll");
+			string baseDir = string.Empty;
+
+			var os = DetectOperatingSystem();
+
+			switch(os)
+			{
+				case OperatingSystem.Windows:
+				case OperatingSystem.Linux:
+					baseDir = Path.Combine(installDir, "Cities_Data");
+					break;
+
+				case OperatingSystem.OSX:
+					baseDir = Path.Combine(installDir, "Cities.app", "Contents", "Resources", "Data");
+					break;
+
+				case OperatingSystem.Unknown:
+					Console.WriteLine("Warning: Unsupported operating system!");
+					// Handle unknown operating systems like Windows & Linux
+					goto case OperatingSystem.Linux;
+			}
+
+			var managed = Path.Combine(baseDir, "Managed");
+			var gameBinary = Path.Combine(managed, "Assembly-CSharp.dll");
+			var outputBinary = Path.Combine(managed, "Assembly-CSharp.mod.dll");
 
 			if(!File.Exists(gameBinary))
 			{
@@ -47,7 +70,7 @@ namespace CitiesCompilerExtender
 				"ColossalManaged.dll"
 			};
 
-			ModifyAssembly(gameBinary, targetBinary, assemblies);
+			ModifyAssembly(gameBinary, outputBinary, assemblies);
 		}
 
 		private static void ModifyAssembly(string filePath, string targetPath, List<string> assemblies)
@@ -103,6 +126,67 @@ namespace CitiesCompilerExtender
 			Console.WriteLine("Additional arguments:");
 			Console.WriteLine();
 			Console.WriteLine("--help OR /help\t\tShow this dialog.");
+		}
+
+		private static OperatingSystem DetectOperatingSystem()
+		{
+			var platform = Environment.OSVersion.Platform;
+
+			if (platform == PlatformID.Win32NT)
+			{
+				return OperatingSystem.Windows;
+			}
+			else if (platform == PlatformID.Unix || platform == PlatformID.MacOSX)
+			{
+				var uname = GetProcessOutput("uname");
+
+				if (uname.Contains("Darwin"))
+				{
+					return OperatingSystem.OSX;
+				}
+				else if (uname.Contains("Linux"))
+				{
+					return OperatingSystem.Linux;
+				}
+			}
+
+			return OperatingSystem.Unknown;
+		}
+
+		private enum OperatingSystem
+		{
+			Windows,
+			Linux,
+			OSX,
+			Unknown
+		}
+
+		//Modified from https://blez.wordpress.com/2012/09/17/determine-os-with-netmono/
+		private static string GetProcessOutput(string name)
+		{
+			try
+			{
+				var pInfo = new ProcessStartInfo(name)
+				{
+					UseShellExecute = false,
+					RedirectStandardOutput = true
+				};
+
+				Process p = Process.Start(pInfo);
+
+				// Do not wait for the child process to exit before reading to
+				// the end of its redirected stream.
+				// Read the output stream first and then wait.
+				var output = p.StandardOutput.ReadToEnd();
+				p.WaitForExit();
+
+				return output?.Trim() ?? string.Empty;
+			}
+			catch(FileNotFoundException)
+			{
+				// The executable couldn't be found -> return empty string
+				return string.Empty;
+			}
 		}
 	}
 }
