@@ -1,7 +1,10 @@
 PROJECT := CCE
 
 DIR_SOURCES := ./Source
+DIR_PROPERTIES := ./Properties
+
 SOURCES := $(shell find $(DIR_SOURCES) -name '*.cs')
+SOURCES += $(shell find $(DIR_PROPERTIES) -name '*.cs')
 
 DIR_BINARY := Binaries
 BINARY_NAME := $(PROJECT).exe
