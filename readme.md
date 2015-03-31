@@ -28,15 +28,15 @@ The path must be an absolute path to the game's installation directory (for exam
 The tool creates a new file, which is called Assembly-CSharp.mod.dll, in Cities_Data/Managed. **This tool won't overwrite the existing Assembly-CSharp.dll. You have to backup the current version of the file and replace it yourself with the modified version.**
 
 ## How to build
-If you have installed make and Mono, just run 'make' in the root directory of the project. If you haven't, you can create a Visual Studio/Monodevelop solution yourself.
+A Visual Studio project file is included. Alternatively, you can build the project with the included makefile (which requires Mono in system path).
 The project requires [Mono.Cecil](https://github.com/jbevain/cecil), which is included in /Dependencies.
 
 ## Prebuilt binaries
 Not currently available.
 
 ## Todo
-* Automatic backup of Assembly-CSharp.dll
-* A Visual Studio project file
+* Separate Debug and Release targets for Makefile
+* Automatic backup & replacement of Assembly-CSharp.dll
 * Better error handling
   * For example, a warning if the .dll has been already modified
 
