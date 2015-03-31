@@ -1,11 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.CodeDom.Compiler;
-using System.Diagnostics;
-
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -15,7 +12,7 @@ namespace CitiesCompilerExtender
 	{
 		public static void Main(string[] args)
 		{
-			Console.WriteLine("CitiesCompilerExtender 0.1.0");
+			Console.WriteLine("CitiesCompilerExtender 0.1.1");
 
 			if(args.Length < 1 || args[0] == "--help" || args[0] == "/help")
 			{
@@ -31,7 +28,7 @@ namespace CitiesCompilerExtender
 				return;
 			}
 
-			string baseDir = string.Empty;
+			var baseDir = string.Empty;
 
 			var os = DetectOperatingSystem();
 
@@ -98,7 +95,7 @@ namespace CitiesCompilerExtender
 			ilProcessor.Replace(arraySizeInjection, ilProcessor.Create(OpCodes.Ldc_I4, assemblies.Count + 1));
 
 			Console.WriteLine("Adding references...");
-			int index = 1;
+			var index = 1;
 			foreach(var assembly in assemblies)
 			{
 				// Duplicate array reference
@@ -132,25 +129,26 @@ namespace CitiesCompilerExtender
 		{
 			var platform = Environment.OSVersion.Platform;
 
-			if (platform == PlatformID.Win32NT)
+			switch (platform)
 			{
-				return OperatingSystem.Windows;
-			}
-			else if (platform == PlatformID.Unix || platform == PlatformID.MacOSX)
-			{
-				var uname = GetProcessOutput("uname");
+			    case PlatformID.Win32NT:
+			        return OperatingSystem.Windows;
+			    case PlatformID.Unix:
+			    case PlatformID.MacOSX:
+			        var uname = GetProcessOutput("uname");
 
-				if (uname.Contains("Darwin"))
-				{
-					return OperatingSystem.OSX;
-				}
-				else if (uname.Contains("Linux"))
-				{
-					return OperatingSystem.Linux;
-				}
+			        if (uname.Contains("Darwin"))
+			        {
+			            return OperatingSystem.OSX;
+			        }
+			        if (uname.Contains("Linux"))
+			        {
+			            return OperatingSystem.Linux;
+			        }
+			        break;
 			}
 
-			return OperatingSystem.Unknown;
+		    return OperatingSystem.Unknown;
 		}
 
 		private enum OperatingSystem
@@ -172,7 +170,12 @@ namespace CitiesCompilerExtender
 					RedirectStandardOutput = true
 				};
 
-				Process p = Process.Start(pInfo);
+				var p = Process.Start(pInfo);
+
+			    if (p == null)
+			    {
+			        return string.Empty;;
+			    }
 
 				// Do not wait for the child process to exit before reading to
 				// the end of its redirected stream.
@@ -180,7 +183,7 @@ namespace CitiesCompilerExtender
 				var output = p.StandardOutput.ReadToEnd();
 				p.WaitForExit();
 
-				return output?.Trim() ?? string.Empty;
+				return output.Trim();
 			}
 			catch(FileNotFoundException)
 			{
